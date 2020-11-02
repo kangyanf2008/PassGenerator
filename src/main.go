@@ -1,5 +1,5 @@
 package main
-
+import "C"
 import (
 	"encryption"
 	"flag"
@@ -30,4 +30,22 @@ func main() {
 		os.Exit(0)
 	}
 
+}
+//export SecretAESBase64Md532
+/*func SecretAESBase64Md532(sn string) string {
+	currentPath, _ :=os.Getwd()
+	filePath := filepath.Join(currentPath, utils.FormatTime(time.Now())+".txt")
+	f, _ := os.Create(filePath) //创建文件
+	defer f.Close()
+	w := bufio.NewWriter(f) //创建新的 Writer 对象
+	w.WriteString(sn)
+	w.Flush()
+
+	return encryption.SecretAESBase64Md532Len20(sn)
+}
+*/
+//export SecretAESBase64Md532
+func SecretAESBase64Md532(src *C.char) *C.char {
+	sn := C.GoString(src)
+	return C.CString(encryption.SecretAESBase64Md532Len20(sn))
 }

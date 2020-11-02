@@ -43,6 +43,7 @@ func SecretAESBase64Md532(sn string) string {
 3 md5 32
 return 20字符串
 */
+//export SecretAESBase64Md532Len20
 func SecretAESBase64Md532Len20(sn string) string {
 
 	//取出密钥
