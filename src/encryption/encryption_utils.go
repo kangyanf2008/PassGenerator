@@ -43,18 +43,18 @@ func SecretAESBase64Md532(sn string) string {
 3 md5 32
 return 20字符串
 */
-//export SecretAESBase64Md532Len20
-func SecretAESBase64Md532Len20(sn string) string {
+//export SecretAESBase64Md532Len17
+func SecretAESBase64Md532Len17(sn string) string {
 
 	if len(sn) == 0 {
-		fmt.Println("sn is empty")
-		os.Exit(-1)
+		fmt.Println("【error】sn is empty")
+		return ""
 	}
 	//取出密钥
 	srcKey, err := utils.Base64Decode(config.KEY)
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(-1)
+		fmt.Println("【error】"+err.Error())
+		return ""
 	}
 
 	//拼接字符串{key}_{sn.txt}
@@ -66,7 +66,7 @@ func SecretAESBase64Md532Len20(sn string) string {
 	//生成md5 32位字符串
 	md5String := utils.Md532(crypted)
 
-	return md5String[0:config.SecretLen]
+	return string(config.GetVersionByte() + md5String[0:config.SecretLen])
 }
 
 func BatchCreateSnPWBySnFile(snFilePath string) error {
@@ -75,15 +75,15 @@ func BatchCreateSnPWBySnFile(snFilePath string) error {
 		return err
 	}
 	if len(sns) == 0 {
-		emsg := "sn.txt file is empty" + snFilePath
+		emsg := "【error】sn.txt file is empty" + snFilePath
 		fmt.Println(emsg)
 		return errors.New(emsg)
 	}
 	for idx, v := range sns {
 		//fdsfds	fdsfdsfdsfdsfdsf格式
 		tem := strings.Trim(v, " ")
-		//计算SN对应的密码【AES/ECB/PKCS5 进行AES/ECB/PKCS5 md5 截取20位字符串】
-		key := SecretAESBase64Md532Len20(tem)
+		//3字节版本号+计算SN对应的密码【AES/ECB/PKCS5 进行AES/ECB/PKCS5 md5 截取17位字符串】
+		key := config.GetVersionByte() + SecretAESBase64Md532Len17(tem)
 		//进行AES/ECB/PKCS5 进行AES/ECB/PKCS5 普通base64编码加密
 		crypted := utils.AesEncrypt(key, config.ServerKEY)
 		sns[idx] = fmt.Sprintf("%s\t%s\n", tem, crypted)

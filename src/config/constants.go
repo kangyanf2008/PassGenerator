@@ -6,7 +6,8 @@ var(
 	SEPARATE_CHAR string = "_"
 	LF byte = 10
 	CR byte = 13
-	SecretLen = 20
+	SecretLen = 17
+	VersionSplit string = "."
 )
 
 
