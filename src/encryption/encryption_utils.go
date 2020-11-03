@@ -21,7 +21,7 @@ func SecretAESBase64Md532(sn string) string {
 	//取出密钥
 	srcKey, err := utils.Base64Decode(config.KEY)
 	if err != nil {
-		panic(err.Error())
+		fmt.Println(err.Error())
 		os.Exit(-1)
 	}
 
@@ -46,10 +46,14 @@ return 20字符串
 //export SecretAESBase64Md532Len20
 func SecretAESBase64Md532Len20(sn string) string {
 
+	if len(sn) == 0 {
+		fmt.Println("sn is empty")
+		os.Exit(-1)
+	}
 	//取出密钥
 	srcKey, err := utils.Base64Decode(config.KEY)
 	if err != nil {
-		panic(err.Error())
+		fmt.Println(err.Error())
 		os.Exit(-1)
 	}
 

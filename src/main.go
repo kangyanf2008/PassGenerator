@@ -17,12 +17,14 @@ func main() {
 	if snFile != "" {
 		err := encryption.BatchCreateSnPWBySnFile(snFile)
 		if err != nil {
+			fmt.Println(err)
 			os.Exit(-1)
 		}
 		os.Exit(0)
 	}
 
 	if sn ==  "" {
+		fmt.Println("sn is empty")
 		os.Exit(-1)
 	} else {
 		//生成20位密码字符串
