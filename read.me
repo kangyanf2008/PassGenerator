@@ -1,4 +1,14 @@
 #param -sn=xxx 或 -snFile=D:\xxx\sn.txt
+定义def文件
+EXPORTS
+    SecretAESBase64Md532
+
+配置 bin/2013-Hostx64.rar，配置环境变量，嵌入式使用2013版本工具集
+
+1、执行 ./buildDll.bat
+在lib目录
+2、gcc pg.def pg.a -shared -lwinmm -lWs2_32 -o pg.dll -Wl,--out-implib,pg.dll.a
+3、lib /def:pg.def /name:pg.dll /out:pg.lib /MACHINE:X86
 
 c++
 g++ main.cpp pg.dll

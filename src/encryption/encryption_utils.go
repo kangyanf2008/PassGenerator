@@ -83,7 +83,7 @@ func BatchCreateSnPWBySnFile(snFilePath string) error {
 		//fdsfds	fdsfdsfdsfdsfdsf格式
 		tem := strings.Trim(v, " ")
 		//3字节版本号+计算SN对应的密码【AES/ECB/PKCS5 进行AES/ECB/PKCS5 md5 截取17位字符串】
-		key := config.GetVersionByte() + SecretAESBase64Md532Len17(tem)
+		key := SecretAESBase64Md532Len17(tem)
 		//进行AES/ECB/PKCS5 进行AES/ECB/PKCS5 普通base64编码加密
 		crypted := utils.AesEncrypt(key, config.ServerKEY)
 		sns[idx] = fmt.Sprintf("%s\t%s\n", tem, crypted)

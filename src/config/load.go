@@ -40,7 +40,7 @@ func LoadConfigAndSetDefault() error {
 	}
 
 	//版本第二个字段
-	field2 := versionStrArray[2]
+	field2 := versionStrArray[1]
 	v1Int, err := strconv.Atoi(field2)
 	if err != nil {
 		fmt.Println("【error】config.toml VersionCode field config error [v1=" + field2 + "]err=" + err.Error())
