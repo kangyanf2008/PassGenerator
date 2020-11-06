@@ -1,7 +1,7 @@
 package config
 
 var(
-	KEY string = "cGVuc2Vlc0AyMDIwMTAyOQ=="
+	KEY string = "cHNta15AJioxMTA1IygpSw=="
 	ServerKEY string = "K8Ff3KY4gSjGstf%"
 	SEPARATE_CHAR string = "_"
 	LF byte = 10
