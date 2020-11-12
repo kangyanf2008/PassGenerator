@@ -1,0 +1,13 @@
+prefix=D:/kyf/go-workspace/password_generator/demo/my-lib
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${exec_prefix}/include
+Name: demo
+Description: The hello library just for testing pkgconfig
+Version: 0.1
+Libs: -lhello -L${libdir}
+Cflags: -I${includedir}
+
+
+
+
