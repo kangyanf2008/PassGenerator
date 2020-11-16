@@ -1,4 +1,10 @@
 package main
+
+/*
+#cgo CFLAGS: -I.
+#cgo LDFLAGS: -L. -lpwKey -lWibuCm64
+#include "pwKey.h"
+*/
 import "C"
 import (
 	"config"
@@ -6,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"unsafe"
 )
 
 func main() {
@@ -15,12 +22,27 @@ func main() {
 	flag.StringVar(&snFile, "snFile", "", "")
 	flag.Parse()
 
-	//加载版本号配置文件
-	err := config.LoadConfigAndSetDefault()
-	if err != nil {
-		fmt.Println("【error】"+err.Error())
-		os.Exit(-1)
+	if config.GetConfig() == nil {
+		//加载版本号配置文件
+		err := config.LoadConfigAndSetDefault()
+		if err != nil {
+			fmt.Println("【error】" + err.Error())
+			os.Exit(-1)
+		}
+
+		//使用非默认密钥key
+		if !config.GetConfig().ConfigParam.UseDefkey {
+			var data [1024]uint8
+			var dataLen uint
+			code := C.getKey(C.ulong(0), C.ulong(0), (*C.uchar)(unsafe.Pointer(&data)), (*C.uint)(unsafe.Pointer(&dataLen)))
+			if code != 0 {
+				fmt.Printf("read key error code=%d \n", code)
+				os.Exit(int(code))
+			}
+			config.KEY = string(data[0:dataLen])
+		}
 	}
+	//判断sn文件是否为空
 	if snFile != "" {
 		err := encryption.BatchCreateSnPWBySnFile(snFile)
 		if err != nil {
@@ -30,7 +52,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	if sn ==  "" {
+	if sn == "" {
 		fmt.Println("【error】 sn is empty")
 		os.Exit(-1)
 	} else {
@@ -40,6 +62,7 @@ func main() {
 	}
 
 }
+
 /*func SecretAESBase64Md532(sn string) string {
 	currentPath, _ :=os.Getwd()
 	filePath := filepath.Join(currentPath, utils.FormatTime(time.Now())+".txt")
@@ -64,11 +87,26 @@ func SecretAESBase64Md532(src *C.char) *C.char {
 		fmt.Println("【error】r sn is null")
 		return C.CString("")
 	}
-	//加载版本号配置文件
-	err := config.LoadConfigAndSetDefault()
-	if err != nil {
-		fmt.Println("【error】"+err.Error())
-		os.Exit(-1)
+
+	if config.GetConfig() == nil {
+		//加载版本号配置文件
+		err := config.LoadConfigAndSetDefault()
+		if err != nil {
+			fmt.Println("【error】" + err.Error())
+			os.Exit(-1)
+		}
+
+		//使用非默认密钥key
+		if !config.GetConfig().ConfigParam.UseDefkey {
+			var data [1024]uint8
+			var dataLen uint
+			code := C.getKey(C.ulong(0), C.ulong(0), (*C.uchar)(unsafe.Pointer(&data)), (*C.uint)(unsafe.Pointer(&dataLen)))
+			if code != 0 {
+				fmt.Printf("read key error code=%d \n", code)
+				os.Exit(int(code))
+			}
+			config.KEY = string(data[0:dataLen])
+		}
 	}
 	return C.CString(encryption.SecretAESBase64Md532Len17(sn))
 }

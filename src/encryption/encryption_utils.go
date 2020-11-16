@@ -50,7 +50,6 @@ func SecretAESBase64Md532Len17(sn string) string {
 		fmt.Println("【error】sn is empty")
 		return ""
 	}
-	//取出密钥
 	srcKey, err := utils.Base64Decode(config.KEY)
 	if err != nil {
 		fmt.Println("【error】"+err.Error())
