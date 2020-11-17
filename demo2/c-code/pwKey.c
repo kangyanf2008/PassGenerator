@@ -65,7 +65,83 @@ int xDump(unsigned char *data, int dataLen){
 /*
 读取芯片key
 */
-int getKey(unsigned long ProductCode, unsigned long mulFirmCode, unsigned char data[1024], unsigned int *ilen){
+
+int getSecretDataKey(unsigned long ProductCode, unsigned long mulFirmCode, unsigned char data[1024], unsigned int *ilen){
+	
+	unsigned int res, keyLen;
+	HCMSysEntry hcmEntry;
+	CMACCESS cmAcc;
+	CMENTRYDATA pCmBoxEntry;
+	CMSECUREDATA cmSecureData;
+	//16进制密码
+	unsigned char PioEncryptionKey[] = {
+		0x31, 0x32, 0x33, 0x34, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	
+	memset(&cmAcc, 0, sizeof(cmAcc));
+	cmAcc.mflCtrl = CM_ACCESS_NOUSERLIMIT;
+
+	//如果code为空，则使用默认
+	if (mulFirmCode <= 0) {
+		cmAcc.mulFirmCode = MUL_FIRM_CODE;
+	}
+	else {
+		cmAcc.mulFirmCode = mulFirmCode;
+	}
+
+	//如果产品码未传，则使用默认的
+	if (ProductCode <= 0) {
+		cmAcc.mulProductCode = DEFAULT_PRODUCT_CODE;
+	} else {
+		cmAcc.mulProductCode = ProductCode;
+	}
+
+	// 访问CmDongle。
+	hcmEntry = CmAccess(CM_ACCESS_LOCAL_LAN, &cmAcc);
+
+	// 处理任何错误。
+	// 很可能没有找到带有合适公司码和产品码的CmDongle
+	if (NULL == hcmEntry){
+		return ErrorHandler("CmAccess", 1, hcmEntry);
+	}
+
+	// 返回值包含一个字节数目 
+	// 数据在返回加密在CMENTRYDATA::mabData。
+	// 通常此处会有一些产品信息。
+
+	memset(&cmSecureData, 0, sizeof(CMSECUREDATA));
+	cmSecureData.mcmBaseCrypt.mflCtrl |= CM_CRYPT_FIRMKEY;
+	cmSecureData.mcmBaseCrypt.mflCtrl |= CM_CRYPT_AES;
+	cmSecureData.mcmBaseCrypt.mulEncryptionCodeOptions |= CM_CRYPT_UCCHECK;
+	cmSecureData.mcmBaseCrypt.mulEncryptionCodeOptions |= CM_CRYPT_ATCHECK;
+	cmSecureData.mcmBaseCrypt.mulEncryptionCodeOptions |= CM_CRYPT_ETCHECK;
+	cmSecureData.mcmBaseCrypt.mulEncryptionCodeOptions |= CM_CRYPT_SAUNLIMITED;
+	memcpy(cmSecureData.mabPioEncryptionKey, PioEncryptionKey, CM_BLOCK_SIZE);
+	cmSecureData.musPioType |= CM_GF_HIDDENDATA;
+
+	keyLen = CmGetSecureData(hcmEntry, &cmSecureData, &pCmBoxEntry);
+
+	// 处理任何错误。
+	// 句柄已经打开，此处不应再有其他句柄。
+	if (keyLen == 0){
+		return ErrorHandler("CmGetSecureData (data)", 3, hcmEntry);
+	}
+	//printf("Product Item隐密数据。长度： %d\n", keyLen);
+	//xDump(pCmBoxEntry.mabData, keyLen);
+	*ilen = keyLen;
+	memcpy(data, pCmBoxEntry.mabData, keyLen);
+
+	// 清除所有信息。
+	CmRelease(hcmEntry);
+	
+	return 0;
+}
+
+
+/*
+读取芯片key
+*/
+int getExtDataKey(unsigned long ProductCode, unsigned long mulFirmCode, unsigned char data[1024], unsigned int *ilen){
 	unsigned int res, size, i;
 	HCMSysEntry hcmEntry;
 	CMACCESS cmAcc;
@@ -84,7 +160,8 @@ int getKey(unsigned long ProductCode, unsigned long mulFirmCode, unsigned char d
 	//如果产品码未传，则使用默认的
 	if (ProductCode <= 0) {
 		cmAcc.mulProductCode = DEFAULT_PRODUCT_CODE;
-	} else {
+	}
+	else {
 		cmAcc.mulProductCode = ProductCode;
 	}
 
@@ -139,20 +216,19 @@ int getKey(unsigned long ProductCode, unsigned long mulFirmCode, unsigned char d
 				//xDump(pCmBoxEntry[i].mabData, len);
 				break;
 			case CM_GF_PROTDATA:
-				//printf("Product Item保护数据。长度： %d\n", len);
-				//xDump(pCmBoxEntry[i].mabData, len);
+				printf("Product Item保护数据。长度： %d\n", len);
+				xDump(pCmBoxEntry[i].mabData, len);
 				break;
 			case CM_GF_EXTPROTDATA:
 				//printf("Product Item扩展保护数据。长度： %d, 类型： %d\n", len, extType);
-				//xDump(pCmBoxEntry[i].mabData, len);
+				xDump(pCmBoxEntry[i].mabData, len);
 				//创建空间存放返回结果
-				//printf("%s", pCmBoxEntry[i].mabData);
 				*ilen = len;
 				memcpy(data, pCmBoxEntry[i].mabData, len);
-				free(pCmBoxEntry);//释放内存
-				CmRelease(hcmEntry);
-				return 0;
-				//break;
+				//free(pCmBoxEntry);//释放内存
+				//CmRelease(hcmEntry);
+				//return 0;
+				break;
 			case CM_GF_HIDDENDATA:
 				//printf("Product Item隐藏数据。长度: %d, 类型： %d\n", len, extType);
 				//xDump(pCmBoxEntry[i].mabData, len);
@@ -160,6 +236,11 @@ int getKey(unsigned long ProductCode, unsigned long mulFirmCode, unsigned char d
 			case CM_GF_SECRETDATA:
 				//printf("Product Item隐密数据。长度： %d, 类型： %d\n", len, extType);
 				//xDump(pCmBoxEntry[i].mabData, len);
+				//*ilen = len;
+				//memcpy(data, pCmBoxEntry[i].mabData, len);
+				//free(pCmBoxEntry);//释放内存
+				//CmRelease(hcmEntry);
+				//return 0;
 				break;
 			case CM_GF_USAGEPERIOD:
 				//printf("发现Product Item使用期限。长度： %d\n", len);
@@ -170,7 +251,8 @@ int getKey(unsigned long ProductCode, unsigned long mulFirmCode, unsigned char d
 				break;
 			}
 		}
-	} else {
+	}
+	else {
 		// Size == 0 ==>没有发现Product Item选项。
 		printf("未找到任何Product Item!\n");
 		return -6;
@@ -178,5 +260,6 @@ int getKey(unsigned long ProductCode, unsigned long mulFirmCode, unsigned char d
 
 	// 清除所有信息。
 	CmRelease(hcmEntry);
+
 	return 0;
 }

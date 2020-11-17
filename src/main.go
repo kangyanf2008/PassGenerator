@@ -34,7 +34,7 @@ func main() {
 		if !config.GetConfig().ConfigParam.UseDefkey {
 			var data [1024]uint8
 			var dataLen uint
-			code := C.getKey(C.ulong(0), C.ulong(0), (*C.uchar)(unsafe.Pointer(&data)), (*C.uint)(unsafe.Pointer(&dataLen)))
+			code := C.getExtDataKey(C.ulong(0), C.ulong(0), (*C.uchar)(unsafe.Pointer(&data)), (*C.uint)(unsafe.Pointer(&dataLen)))
 			if code != 0 {
 				fmt.Printf("read key error code=%d \n", code)
 				os.Exit(int(code))
@@ -100,7 +100,7 @@ func SecretAESBase64Md532(src *C.char) *C.char {
 		if !config.GetConfig().ConfigParam.UseDefkey {
 			var data [1024]uint8
 			var dataLen uint
-			code := C.getKey(C.ulong(0), C.ulong(0), (*C.uchar)(unsafe.Pointer(&data)), (*C.uint)(unsafe.Pointer(&dataLen)))
+			code := C.getExtDataKey(C.ulong(0), C.ulong(0), (*C.uchar)(unsafe.Pointer(&data)), (*C.uint)(unsafe.Pointer(&dataLen)))
 			if code != 0 {
 				fmt.Printf("read key error code=%d \n", code)
 				os.Exit(int(code))
