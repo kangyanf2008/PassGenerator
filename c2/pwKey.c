@@ -5,14 +5,6 @@
 #include "pwKey.h"
 
 
-//16进制密码
-unsigned char PioEncryptionKey[] = {
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-
-
-//客户端解密数据所用的秘钥
-unsigned char pabPiodkDest[CM_BLOCK_SIZE];
 
 int ErrorHandler(char *line, int ExitCode, HCMSysEntry hcmEntry)
 {
@@ -72,111 +64,20 @@ int xDump(unsigned char *data, int dataLen){
 
 
 /*
-读取加密数据
+读取加密数据 CM_CRYPT_AES_ENC_CBC
 */
-int getSecretDataKey(unsigned long ProductCode, unsigned long mulFirmCode, unsigned char data[1024], unsigned int *ilen){
-	
-	HCMSysEntry hcmDataEntry;
-	CMENTRYDATA cmEntry;
-	CMSECUREDATA cmSecureData;
-	CMACCESS cmacc;
-	int iRes;
-	unsigned int keyLen;
-
-	memset(&cmacc, 0, sizeof(cmacc));
-	cmacc.mflCtrl = CM_ACCESS_NOUSERLIMIT;
-
-	//如果code为空，则使用默认
-	if (mulFirmCode <= 0) {
-		cmacc.mulFirmCode = MUL_FIRM_CODE;
-	}
-	else {
-		cmacc.mulFirmCode = mulFirmCode;
-	}
-
-	//如果产品码未传，则使用默认的
-	if (ProductCode <= 0) {
-		cmacc.mulProductCode = DEFAULT_PRODUCT_CODE;
-	} else {
-		cmacc.mulProductCode = ProductCode;
-	}
-
-	// 访问CmDongle。
-	hcmDataEntry = CmAccess(CM_ACCESS_LOCAL, &cmacc);
-
-	// 处理任何错误。
-	// 很可能没有找到带有合适公司码和产品码的CmDongle
-	if (NULL == hcmDataEntry){
-		return ErrorHandler("CmAccess", 1, hcmDataEntry);
-	}
-
-	// 返回值包含一个字节数目 
-	// 数据在返回加密在CMENTRYDATA::mabData。
-	// 通常此处会有一些产品信息。
-
-
-
-	memset(&cmEntry, 0, sizeof(cmEntry));
-	memset(&cmSecureData, 0, sizeof(cmSecureData));
-
-	cmSecureData.mcmBaseCrypt.mflCtrl |= CM_CRYPT_FIRMKEY;
-	cmSecureData.mcmBaseCrypt.mflCtrl |= CM_CRYPT_AES;
-	cmSecureData.mcmBaseCrypt.mulEncryptionCode = 2468;
-	cmSecureData.mcmBaseCrypt.mulEncryptionCode |= CM_CRYPT_UCCHECK;
-	cmSecureData.mcmBaseCrypt.mulEncryptionCode |= CM_CRYPT_ATCHECK;
-	cmSecureData.mcmBaseCrypt.mulEncryptionCode |= CM_CRYPT_ETCHECK;
-	cmSecureData.mcmBaseCrypt.mulEncryptionCode |= CM_CRYPT_SAUNLIMITED;
-	memcpy(cmSecureData.mabPioEncryptionKey, PioEncryptionKey, CM_BLOCK_SIZE);
-	cmSecureData.musPioType |= CM_GF_HIDDENDATA;
-	cmSecureData.musExtType = 0;
-
-	keyLen = CmGetSecureData(hcmDataEntry, &cmSecureData, &cmEntry);
-	
-
-	// 处理任何错误。
-	// 句柄已经打开，此处不应再有其他句柄。
-	if (keyLen == 0){
-		return ErrorHandler("CmGetSecureData (data)", 3, hcmDataEntry);
-	}
-	printf("Product Item隐密数据。长度： %d\n", keyLen);
-	xDump(cmEntry.mabData, keyLen);
-
-	//解密数据
-	iRes = CmDecryptPioData(cmEntry.mabData, cmEntry.mcbData, pabPiodkDest, CM_BLOCK_SIZE);
-	if (0 == iRes) {
-		printf("\tCmDecryptPioData Failed, Cannot Decrypt the data!\n");
-		return -2;
-	} else {
-		printf("\tCmDecryptPioData OK!\n");
-	}//end if(0 == iRes)
-
-	
-	printf("\tHidden data read out:\n\t");
-	for (unsigned int iLenIndex = 0; iLenIndex < cmEntry.mcbData; iLenIndex++)
-	{
-		printf("%X ", cmEntry.mabData[iLenIndex]);
-	}//end for(unsigned int iLenIndex=0; iLenIndex<cmEntry.mcbData; iLenIndex++)
-	
-	*ilen = cmEntry.mcbData;
-	memcpy(data, cmEntry.mabData, cmEntry.mcbData);
-
-	//清除所有信息。
-	CmRelease(hcmDataEntry);
-	
-	return 0;
-}
-
-/*
-读取隐藏数据
-*/
-int getHiddenDataKey(unsigned long ProductCode, unsigned long mulFirmCode, unsigned char data[1024], unsigned int *ilen){
-
+int getCmCrypt2DataKey(unsigned long ProductCode, unsigned long mulFirmCode, unsigned char data[1024], unsigned int *ilen){
 	unsigned int res, size, i;
-	HCMSysEntry hcmEntry;
-	CMACCESS cmAcc;
+	HCMSysEntry hcmse;
+	CMACCESS2 cmAcc;
 
 	memset(&cmAcc, 0, sizeof(cmAcc));
-	cmAcc.mflCtrl = CM_ACCESS_NOUSERLIMIT;
+	cmAcc.mflCtrl |= CM_ACCESS_NOUSERLIMIT;
+
+	//初始化密码
+	unsigned char initkey[] = { 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61,
+		0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61 };
+	CMCRYPT2 cmCrypt;
 
 	//如果code为空，则使用默认
 	if (mulFirmCode <= 0) {
@@ -194,25 +95,25 @@ int getHiddenDataKey(unsigned long ProductCode, unsigned long mulFirmCode, unsig
 		cmAcc.mulProductCode = ProductCode;
 	}
 
+	//访问芯片句柄
+	hcmse = CmAccess2(CM_ACCESS_LOCAL_LAN, &cmAcc);
 
-	// 访问CmDongle。
-	hcmEntry = CmAccess(CM_ACCESS_LOCAL_LAN, &cmAcc);
 
 	// 处理任何错误。
 	// 很可能没有找到带有合适公司码和产品码的CmDongle
-	if (NULL == hcmEntry){
-		return ErrorHandler("CmAccess", 1, hcmEntry);
+	if (NULL == hcmse){
+		return ErrorHandler("CmAccess2", 1, hcmse);
 	}
 
 	// 现在重新获得用户数据。
 	// 首先获得所需缓冲的大小。
-	size = CmGetInfo(hcmEntry, CM_GEI_ENTRYDATA, NULL, 0);
+	size = CmGetInfo(hcmse, CM_GEI_ENTRYDATA, NULL, 0);
 
 	// 处理任何错误。
 	// 当我们希望返回实际所需长度时
 	// 通常情况下无需数据CMERROR_BUFFER_OVERFLOW。
 	if (CmGetLastErrorCode() != CMERROR_BUFFER_OVERFLOW) {
-		return ErrorHandler("CmGetInfo (size)", 2, hcmEntry);
+		return ErrorHandler("CmGetInfo (size)", 2, hcmse);
 	}
 
 
@@ -221,16 +122,15 @@ int getHiddenDataKey(unsigned long ProductCode, unsigned long mulFirmCode, unsig
 		// 通常此处会有一些产品信息。
 		CMENTRYDATA *pCmBoxEntry;
 		pCmBoxEntry = (CMENTRYDATA *)malloc(size);
-		res = CmGetInfo(hcmEntry, CM_GEI_ENTRYDATA, pCmBoxEntry, size);
+		res = CmGetInfo(hcmse, CM_GEI_ENTRYDATA, pCmBoxEntry, size);
 
 		// 处理任何错误。
 		// 句柄已经打开，此处不应再有其他句柄。
 		if (!res){
-			return ErrorHandler("CmGetInfo (data)", 3, hcmEntry);
+			return ErrorHandler("CmGetInfo (data)", 3, hcmse);
 		}
 
-		for (i = 0; i < res / sizeof(CMENTRYDATA); i++)
-		{
+		for (i = 0; i < res / sizeof(CMENTRYDATA); i++)	{
 			int type = pCmBoxEntry[i].mflCtrl & 0x0ffff;
 			int extType = pCmBoxEntry[i].mflCtrl >> 16;
 			int len = pCmBoxEntry[i].mcbData;
@@ -252,20 +152,32 @@ int getHiddenDataKey(unsigned long ProductCode, unsigned long mulFirmCode, unsig
 				//printf("Product Item扩展保护数据。长度： %d, 类型： %d\n", len, extType);
 				//xDump(pCmBoxEntry[i].mabData, len);
 				//创建空间存放返回结果
-				//*ilen = len;
-				//memcpy(data, pCmBoxEntry[i].mabData, len);
-				//free(pCmBoxEntry);//释放内存
-				//CmRelease(hcmEntry);
-				//return 0;
+		
+				memset(&cmCrypt, 0, sizeof(cmCrypt));
+				cmCrypt.mcmBaseCrypt.mflCtrl |= CM_CRYPT_FIRMKEY;
+				cmCrypt.mcmBaseCrypt.mflCtrl |= CM_CRYPT_AES;
+				cmCrypt.mcmBaseCrypt.mulEncryptionCodeOptions |= CM_CRYPT_UCCHECK;
+				cmCrypt.mcmBaseCrypt.mulEncryptionCodeOptions |= CM_CRYPT_ATCHECK;
+				cmCrypt.mcmBaseCrypt.mulEncryptionCodeOptions |= CM_CRYPT_ETCHECK;
+				cmCrypt.mcmBaseCrypt.mulEncryptionCodeOptions |= CM_CRYPT_SAUNLIMITED;
+				memcpy(cmCrypt.mabInitKey, initkey, CM_BLOCK_SIZE);
+
+				CmCrypt2(hcmse, CM_CRYPT_AES_DEC_CBC, &cmCrypt, pCmBoxEntry[i].mabData, len);
+				// 处理任何错误。
+				// 句柄已经打开，此处不应再有其他句柄。
+				/*
+				if (!res){
+					return ErrorHandler("CmCrypt2 (data)", 3, hcmse);
+				}
+				*/
+				
+				*ilen = len;
+				memcpy(data, pCmBoxEntry[i].mabData, len);
+
 				break;
 			case CM_GF_HIDDENDATA:
 				//printf("Product Item隐藏数据。长度: %d, 类型： %d\n", len, extType);
 				//xDump(pCmBoxEntry[i].mabData, len);
-				*ilen = len;
-				memcpy(data, pCmBoxEntry[i].mabData, len);
-				free(pCmBoxEntry);//释放内存
-				CmRelease(hcmEntry);
-				return 0;
 				break;
 			case CM_GF_SECRETDATA:
 				//printf("Product Item隐密数据。长度： %d, 类型： %d\n", len, extType);
@@ -285,16 +197,16 @@ int getHiddenDataKey(unsigned long ProductCode, unsigned long mulFirmCode, unsig
 				break;
 			}
 		}
-	}
-	else {
+	} else {
 		// Size == 0 ==>没有发现Product Item选项。
 		printf("未找到任何Product Item!\n");
 		return -6;
 	}
 
-	// 清除所有信息。
-	CmRelease(hcmEntry);
-
+	
+	//清除所有信息。
+	CmRelease(hcmse);
+	
 	return 0;
 }
 
